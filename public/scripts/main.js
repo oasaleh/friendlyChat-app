@@ -145,11 +145,42 @@ function saveImageMessage(file) {
 // Saves the messaging device token to the datastore.
 function saveMessagingDeviceToken() {
   // TODO 10: Save the device token in the realtime datastore
+  firebase
+    .messaging()
+    .getToken()
+    .then(function (currentToken) {
+      if (currentToken) {
+        console.log('Got FCM device token:', currentToken);
+        // Saving the Device Token to the datastore.
+        firebase
+          .firestore()
+          .collection('fcmTokens')
+          .doc(currentToken)
+          .set({ uid: firebase.auth().currentUser.uid });
+      } else {
+        // Need to request permissions to show notifications.
+        requestNotificationsPermissions();
+      }
+    })
+    .catch(function (error) {
+      console.error('Unable to get messaging token.', error);
+    });
 }
 
 // Requests permissions to show notifications.
 function requestNotificationsPermissions() {
   // TODO 11: Request permissions to send notifications.
+  console.log('Requesting notifications permission...');
+  firebase
+    .messaging()
+    .requestPermission()
+    .then(function () {
+      // Notification permission granted.
+      saveMessagingDeviceToken();
+    })
+    .catch(function (error) {
+      console.error('Unable to get permission to notify.', error);
+    });
 }
 
 // Triggered when a file is selected via the media picker.
@@ -222,7 +253,18 @@ function authStateObserver(user) {
     signInButtonElement.removeAttribute('hidden');
   }
 }
-
+// curl -H "Content-Type: application/json" \
+//      -H "Authorization: key=AAAAW-VPYMA:APA91bGXSKlOqF5s5nQQR8cW19Swu-eoJ6Y4vXEEQiwZ_Iwqr1F86vbQw-6czlDsj4gGW_l5SOfyEtcsmmsVvGk_SeFx4eLBgbRpwbHt5gVw3F-6ajSN60A3CtogSJPppl5bcMtMdkwS" \
+//      -d '{
+//            "notification": {
+//              "title": "New chat message!",
+//              "body": "There is a new message in FriendlyChat",
+//              "icon": "/images/profile_placeholder.png",
+//              "click_action": "http://localhost:5000"
+//            },
+//            "to": "fz72DE-qVySVDypl03FLbm:APA91bHTT6Ec47ClbGXtNHE2cXDAWYEvmYq0r3uXb9OUmkv-inA-1ghe_4Y9hDcc390Quco11945FJ7qDV0kTfdK7ZRK1HLPHmbjD9csK69Ar3IYhrP9hzIJRW8TPL-5O8Oq6f3pGFyE"
+//          }' \
+//      https://fcm.googleapis.com/fcm/send
 // Returns true if user is signed-in. Otherwise false and displays a message.
 function checkSignedInWithMessage() {
   // Return true if the user is signed in Firebase
@@ -412,6 +454,7 @@ mediaCaptureElement.addEventListener('change', onMediaFileSelected);
 initFirebaseAuth();
 
 // TODO: Enable Firebase Performance Monitoring.
+firebase.performance();
 
 // We load currently existing chat messages and listen to new ones.
 loadMessages();
